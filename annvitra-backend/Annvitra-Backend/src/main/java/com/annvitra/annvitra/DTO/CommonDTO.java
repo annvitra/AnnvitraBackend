@@ -1,0 +1,66 @@
+package com.annvitra.annvitra.DTO;
+
+import java.time.LocalDateTime;
+
+import com.annvitra.annvitra.constants.LocationAccess;
+import com.annvitra.annvitra.constants.ProductionType;
+import com.annvitra.annvitra.constants.VehicleType;
+import com.fasterxml.jackson.annotation.JsonAlias;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class CommonDTO {
+  // common details
+  private String email;
+  private String password;
+  @JsonAlias({ "Role" })
+  private String role;
+  @JsonAlias({ "FirstName", "first_name", "first-name" })
+  private String firstName;
+  @JsonAlias({ "LastName", "last_name", "last-name" })
+  private String lastName;
+  private int OTP;
+  private String phoneNumber;
+  private String address;
+  private LocalDateTime OTPexpiry;
+
+  // delivery partner
+  private LocationAccess locationAccess;
+  private VehicleType vehicleType;
+  private String operationArea;
+  private String adhaarNumber;
+  private String adhaarOTP;
+  private String panNumber;
+
+  // farmer
+  private String farmName;
+  private String ownerName;
+  private String farmAddress;
+  private ProductionType productionType;
+  private String quantityRange;
+  private BankDetailsDTO bankDetails;
+
+  // ngo
+  private String ngoName;
+  private String contactPerson;
+  private String ngoAddress;
+  private String registrationNumber;
+  private String areaOfOperation;
+  private String purpose;
+  private String adhharNumber;
+
+  // restaurant
+  private String restaurantName;
+  private String managerName;
+  private String restaurantAddress; // serialized address
+  private String fssaiLicense;
+  private String cuisine;
+  private Double operatingHours;
+  private String gstNumber;
+
+}
