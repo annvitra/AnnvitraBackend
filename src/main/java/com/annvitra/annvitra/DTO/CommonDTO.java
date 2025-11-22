@@ -1,6 +1,5 @@
 package com.annvitra.annvitra.DTO;
 
-import java.time.LocalDateTime;
 
 import com.annvitra.annvitra.constants.LocationAccess;
 import com.annvitra.annvitra.constants.ProductionType;
@@ -16,7 +15,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CommonDTO {
   // common details
-
   @JsonAlias({ "Role" })
   private String role;
   @JsonAlias({ "OTP", "otp", "Otp" })
@@ -24,7 +22,8 @@ public class CommonDTO {
   private String mobile;
 
   // delivery partner
-  private LocationAccess locationAccess;
+  private String name;
+  private LocationAccess locationAccess = LocationAccess.DENY;
   private VehicleType vehicleType;
   private String operationArea;
   private String adhaarNumber;

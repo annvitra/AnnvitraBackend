@@ -119,6 +119,7 @@ public class AuthServiceIMPL implements AuthService {
 
             try {
                 DeliveryPartner deliveryPartner = new DeliveryPartner();
+                deliveryPartner.setName(commonDTO.getName());
                 deliveryPartner.setLocationAccess(LocationAccess.ALLOW);
                 deliveryPartner.setVehicleType(commonDTO.getVehicleType());
                 deliveryPartner.setOperationArea(commonDTO.getOperationArea());

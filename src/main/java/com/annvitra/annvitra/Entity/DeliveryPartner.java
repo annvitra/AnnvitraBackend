@@ -27,6 +27,7 @@ public class DeliveryPartner {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String name;
     private LocationAccess locationAccess = LocationAccess.DENY;
     private VehicleType vehicleType;
     private String operationArea;
@@ -36,7 +37,7 @@ public class DeliveryPartner {
  
 
     
-    @OneToOne(optional = false)
+    @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false, unique = true)
     private User user;
 
