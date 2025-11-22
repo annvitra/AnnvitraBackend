@@ -7,5 +7,7 @@ import com.annvitra.annvitra.Entity.Farmer;
 
 @Repository
 public interface  FarmerRepository extends JpaRepository<Farmer, Long>{
+
+    Farmer findByUser_Mobile(String mobile);
     
 }

@@ -27,6 +27,7 @@ public class Ngo {
 
     private String ngoName;
     private String contactPerson;
+  
     private String ngoAddress;
     private String registrationNumber;
     private String areaOfOperation;

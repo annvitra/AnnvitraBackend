@@ -7,5 +7,7 @@ import com.annvitra.annvitra.Entity.DeliveryPartner;
 
 @Repository
 public interface  DeliverPartnerRepository extends JpaRepository<DeliveryPartner, Long> {
+
+    public DeliveryPartner findByUser_Mobile(String mobile);
     
 }

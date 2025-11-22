@@ -1,29 +1,31 @@
 package com.annvitra.annvitra.ServicesIMPL;
 
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.stereotype.Service;
 
+import com.annvitra.annvitra.Configuration.SMSservice;
 import com.annvitra.annvitra.DTO.CommonDTO;
 import com.annvitra.annvitra.DTO.LoginRequestDTO;
 import com.annvitra.annvitra.DTO.LoginResponseDTO;
+
 import com.annvitra.annvitra.Entity.BankDetails;
 import com.annvitra.annvitra.Entity.DeliveryPartner;
 import com.annvitra.annvitra.Entity.Farmer;
 import com.annvitra.annvitra.Entity.Ngo;
 import com.annvitra.annvitra.Entity.Restaurant;
 import com.annvitra.annvitra.Entity.User;
+import com.annvitra.annvitra.Exceptions.Exceptions;
 import com.annvitra.annvitra.Repositries.DeliverPartnerRepository;
 import com.annvitra.annvitra.Repositries.FarmerRepository;
 import com.annvitra.annvitra.Repositries.NGORepository;
 import com.annvitra.annvitra.Repositries.RestaurantRepository;
 import com.annvitra.annvitra.Repositries.UserRepository;
 import com.annvitra.annvitra.Services.AuthService;
+import com.annvitra.annvitra.Util.CommonMethods;
 import com.annvitra.annvitra.constants.LocationAccess;
 
 import lombok.RequiredArgsConstructor;
@@ -34,50 +36,25 @@ public class AuthServiceIMPL implements AuthService {
 
     Logger logger = LoggerFactory.getLogger(AuthServiceIMPL.class);
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
+
     private final NGORepository ngoRepository;
     private final FarmerRepository farmerRepository;
     private final DeliverPartnerRepository deliveryPartnerRepository;
     private final RestaurantRepository restaurantRepository;
-
-    public void CommonSignupLogic(CommonDTO commonDTO, User user) {
-
-        try {
-            user.setEmail(commonDTO.getEmail());
-            // validate password presence
-            if (commonDTO.getPassword() == null || commonDTO.getPassword().isEmpty()) {
-                logger.error("Password is null or empty during signup for email: " + commonDTO.getEmail());
-                throw new IllegalArgumentException("Password must be provided");
-            }
-            user.setPassword(passwordEncoder.encode(commonDTO.getPassword()));
-            // Log name fields to debug mapping issues
-            logger.info("Signup incoming names - firstName: {} lastName: {}", commonDTO.getFirstName(),
-                    commonDTO.getLastName());
-            user.setRole(commonDTO.getRole());
-            user.setFirstName(commonDTO.getFirstName());
-            user.setLastName(commonDTO.getLastName());
-            user.setOTP(commonDTO.getOTP());
-            // user.setProfileImage(commonDTO.getProfileImage());
-            user.setPhoneNumber(commonDTO.getPhoneNumber());
-            user.setAddress(commonDTO.getAddress());
-            user.setOTPexpiry(commonDTO.getOTPexpiry());
-
-            userRepository.save(user);
-            logger.info("User saved successfully with email: " + user.getEmail());
-        } catch (Exception e) {
-            logger.error("Failed to save user", e);
-            throw new RuntimeException("Failed to save user", e);
-
-        }
-    }
+    private final CommonMethods commonMethods;
+    private final SMSservice smsservice;
 
     @Override
     public void signup(CommonDTO commonDTO) {
 
         String role = commonDTO.getRole();
-        User user = new User();
-        CommonSignupLogic(commonDTO, user);
+        String mobile = commonDTO.getMobile();
+        User user = userRepository.findByMobile(mobile);
+        if (user == null) {
+            logger.error("No user found with mobile number: " + mobile);
+            throw new IllegalArgumentException(new Exceptions.UserNotFoundException());
+        }
+
         if (role == null || role.isEmpty()) {
             logger.error("Role not provided during signup");
             throw new IllegalArgumentException("Role must be provided for signup");
@@ -88,7 +65,6 @@ public class AuthServiceIMPL implements AuthService {
                 ngo.setNgoAddress(commonDTO.getNgoAddress());
                 ngo.setNgoName(commonDTO.getNgoName());
                 ngo.setContactPerson(commonDTO.getContactPerson());
-
                 ngo.setRegistrationNumber(commonDTO.getRegistrationNumber());
                 ngo.setAreaOfOperation(commonDTO.getAreaOfOperation());
                 ngo.setAdhharNumber(commonDTO.getAdhharNumber());
@@ -196,32 +172,164 @@ public class AuthServiceIMPL implements AuthService {
 
     }
 
-    @Override
-    public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
-        try {
-            Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequestDTO.getEmail(), loginRequestDTO.getPassword()));
+    public void registerUser(CommonDTO commonDTO, String generatedOTP) {
 
-            if (auth.isAuthenticated()) {
-                // try to extract role from principal if available
-                String role = null;
-                Object principal = auth.getPrincipal();
-                if (principal instanceof User) {
-                    role = ((User) principal).getRole();
-                } else {
-                    // fallback: load from repository
-                    User u = userRepository.findByEmail(loginRequestDTO.getEmail()).orElse(null);
-                    if (u != null) {
-                        role = u.getRole();
-                    }
-                }
-                return new LoginResponseDTO(loginRequestDTO.getEmail(), "Login successful", role);
+        User user = new User();
+        LocalDateTime expiry = LocalDateTime.now().plusMinutes(10);
+        user.setMobile(commonDTO.getMobile());
+        user.setOTPexpiry(expiry);
+        user.setRole(commonDTO.getRole());
+        user.setOTP(generatedOTP);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void verifyMobile(CommonDTO commonDTO) {
+        String role = commonDTO.getRole();
+        if (role.equalsIgnoreCase("NGO")) {
+            Ngo existingNgo = ngoRepository.findByUser_Mobile(commonDTO.getMobile());
+            if (existingNgo != null) {
+                // Mobile number already exists
+                logger.info("Mobile number already registered for NGO: " + commonDTO.getMobile());
+                throw new IllegalArgumentException("Mobile number already registered for NGO");
+
             } else {
-                return new LoginResponseDTO(loginRequestDTO.getEmail(), "Authentication failed", null);
+                // generate and send OTP
+                String generatedOTP = commonMethods.generateOTP();
+
+                registerUser(commonDTO, generatedOTP);
+                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
             }
-        } catch (AuthenticationException ex) {
-            logger.error("Authentication failed for email: " + loginRequestDTO.getEmail(), ex);
-            throw ex;
+
+        } else if (role.equalsIgnoreCase("FARMER")) {
+            Farmer existingFarmer = farmerRepository.findByUser_Mobile(commonDTO.getMobile());
+            if (existingFarmer != null) {
+                // Mobile number already exists
+                logger.info("Mobile number already registered for Farmer: " + commonDTO.getMobile());
+                throw new IllegalArgumentException("Mobile number already registered for Farmer");
+            } else {
+                // generate and send OTP
+                String generatedOTP = commonMethods.generateOTP();
+                registerUser(commonDTO, generatedOTP);
+                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
+            }
+
+        } else if (role.equalsIgnoreCase("DELIVERY_PARTNER")) {
+            DeliveryPartner existingDeliveryPartner = deliveryPartnerRepository
+                    .findByUser_Mobile(commonDTO.getMobile());
+            if (existingDeliveryPartner != null) {
+                // Mobile number already exists
+                logger.info("Mobile number already registered for Delivery Partner: " + commonDTO.getMobile());
+                throw new IllegalArgumentException("Mobile number already registered for Delivery Partner");
+            } else {
+                // generate and send OTP
+                String generatedOTP = commonMethods.generateOTP();
+                registerUser(commonDTO, generatedOTP);
+                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
+            }
+        } else if (role.equalsIgnoreCase("RESTAURANT")) {
+            Restaurant existingRestaurant = restaurantRepository.findByUser_Mobile(commonDTO.getMobile());
+            if (existingRestaurant != null) {
+                // Mobile number already exists
+                logger.info("Mobile number already registered for Restaurant: " + commonDTO.getMobile());
+                throw new IllegalArgumentException("Mobile number already registered for Restaurant");
+            } else {
+                // generate and send OTP
+                String generatedOTP = commonMethods.generateOTP();
+                registerUser(commonDTO, generatedOTP);
+                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
+            }
+        } else {
+            logger.error("Invalid role provided during mobile verification: " + role);
+            throw new IllegalArgumentException("Invalid role: " + role);
+        }
+    }
+
+    @Override
+    public void verifyOTP(CommonDTO commonDTO) {
+        String mobile = commonDTO.getMobile();
+        String role = commonDTO.getRole();
+        String inputOTP = commonDTO.getOTP();
+        logger.info("verifyOTP requested for mobile={}, role={}, inputOTP={}", mobile, role, inputOTP);
+
+        User user = userRepository.findByMobile(mobile);
+        if (user != null) {
+            logger.info("Found user for mobile={}, storedOTP={}, otpExpiry={}", user.getMobile(), user.getOTP(),
+                    user.getOTPexpiry());
+        } else {
+            logger.info("No user found for mobile={}", mobile);
+        }
+        if (user == null) {
+            logger.error("No user found with mobile number: " + mobile);
+            throw new IllegalArgumentException(new Exceptions.UserNotFoundException());
+        }
+
+        // Debug: log exact stored vs provided OTP before any role-specific checks
+        logger.info("Comparing storedOTP={} with provided inputOTP={} for mobile={}", user.getOTP(), inputOTP, mobile);
+
+        if (role.equalsIgnoreCase("NGO")) {
+
+            if (commonMethods.isOTPExpired(user.getOTPexpiry())) {
+                logger.error("OTP has expired for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException("OTP has expired"));
+            }
+
+            if (commonMethods.verifyOTP(user.getOTP(), inputOTP)) {
+                logger.info("OTP verified successfully for mobile number: " + mobile);
+                // OTP verified successfully, proceed with further logic if needed
+            } else {
+                logger.error("Invalid OTP provided for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException());
+            }
+
+        } else if (role.equalsIgnoreCase("FARMER")) {
+
+            if (commonMethods.isOTPExpired(user.getOTPexpiry())) {
+                logger.error("OTP has expired for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException("OTP has expired"));
+            }
+
+            if (commonMethods.verifyOTP(user.getOTP(), inputOTP)) {
+                logger.info("OTP verified successfully for mobile number: " + mobile);
+                // OTP verified successfully, proceed with further logic if needed
+            } else {
+                logger.error("Invalid OTP provided for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException());
+            }
+
+        } else if (role.equalsIgnoreCase("DELIVERY_PARTNER")) {
+
+            if (commonMethods.isOTPExpired(user.getOTPexpiry())) {
+                logger.error("OTP has expired for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException("OTP has expired"));
+            }
+
+            if (commonMethods.verifyOTP(user.getOTP(), inputOTP)) {
+                logger.info("OTP verified successfully for mobile number: " + mobile);
+                // OTP verified successfully, proceed with further logic if needed
+            } else {
+                logger.error("Invalid OTP provided for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException());
+            }
+
+        } else if (role.equalsIgnoreCase("RESTAURANT")) {
+
+            if (commonMethods.isOTPExpired(user.getOTPexpiry())) {
+                logger.error("OTP has expired for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException("OTP has expired"));
+            }
+
+            if (commonMethods.verifyOTP(user.getOTP(), inputOTP)) {
+                logger.info("OTP verified successfully for mobile number: " + mobile);
+                // OTP verified successfully, proceed with further logic if needed
+            } else {
+                logger.error("Invalid OTP provided for mobile number: " + mobile);
+                throw new IllegalArgumentException(new Exceptions.InvalidOTPException());
+            }
+
+        } else {
+            logger.error("Invalid role provided during mobile verification: " + role);
+            throw new IllegalArgumentException(new Exceptions.RoleNotProvidedException("Invalid role: " + role));
         }
     }
 

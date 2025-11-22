@@ -16,18 +16,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CommonDTO {
   // common details
-  private String email;
-  private String password;
+
   @JsonAlias({ "Role" })
   private String role;
-  @JsonAlias({ "FirstName", "first_name", "first-name" })
-  private String firstName;
-  @JsonAlias({ "LastName", "last_name", "last-name" })
-  private String lastName;
-  private int OTP;
-  private String phoneNumber;
-  private String address;
-  private LocalDateTime OTPexpiry;
+  @JsonAlias({ "OTP", "otp", "Otp" })
+  private String OTP;
+  private String mobile;
 
   // delivery partner
   private LocationAccess locationAccess;
