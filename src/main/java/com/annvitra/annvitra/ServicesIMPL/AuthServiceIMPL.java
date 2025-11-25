@@ -4,14 +4,10 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.stereotype.Service;
 
 import com.annvitra.annvitra.Configuration.SMSservice;
 import com.annvitra.annvitra.DTO.CommonDTO;
-import com.annvitra.annvitra.DTO.LoginRequestDTO;
-import com.annvitra.annvitra.DTO.LoginResponseDTO;
-
 import com.annvitra.annvitra.Entity.BankDetails;
 import com.annvitra.annvitra.Entity.DeliveryPartner;
 import com.annvitra.annvitra.Entity.Farmer;
@@ -196,10 +192,8 @@ public class AuthServiceIMPL implements AuthService {
 
             } else {
                 // generate and send OTP
-                String generatedOTP = commonMethods.generateOTP();
-
+               String generatedOTP = smsservice.sendOTP(commonDTO.getMobile());
                 registerUser(commonDTO, generatedOTP);
-                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
             }
 
         } else if (role.equalsIgnoreCase("FARMER")) {
@@ -210,9 +204,8 @@ public class AuthServiceIMPL implements AuthService {
                 throw new IllegalArgumentException("Mobile number already registered for Farmer");
             } else {
                 // generate and send OTP
-                String generatedOTP = commonMethods.generateOTP();
+               String generatedOTP = smsservice.sendOTP(commonDTO.getMobile());
                 registerUser(commonDTO, generatedOTP);
-                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
             }
 
         } else if (role.equalsIgnoreCase("DELIVERY_PARTNER")) {
@@ -224,9 +217,8 @@ public class AuthServiceIMPL implements AuthService {
                 throw new IllegalArgumentException("Mobile number already registered for Delivery Partner");
             } else {
                 // generate and send OTP
-                String generatedOTP = commonMethods.generateOTP();
+               String generatedOTP = smsservice.sendOTP(commonDTO.getMobile());
                 registerUser(commonDTO, generatedOTP);
-                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
             }
         } else if (role.equalsIgnoreCase("RESTAURANT")) {
             Restaurant existingRestaurant = restaurantRepository.findByUser_Mobile(commonDTO.getMobile());
@@ -236,9 +228,8 @@ public class AuthServiceIMPL implements AuthService {
                 throw new IllegalArgumentException("Mobile number already registered for Restaurant");
             } else {
                 // generate and send OTP
-                String generatedOTP = commonMethods.generateOTP();
+                String generatedOTP = smsservice.sendOTP(commonDTO.getMobile());
                 registerUser(commonDTO, generatedOTP);
-                smsservice.sendOTP(commonDTO.getMobile(), "Your OTP is: " + generatedOTP);
             }
         } else {
             logger.error("Invalid role provided during mobile verification: " + role);
